@@ -4,10 +4,12 @@ from models.client import Client
 from models.product import Product
 from models.sale import Sale
 from models.inventory import Inventory
+from models.base_model import BaseModel
 
 
 def create_all_tables():
-    initializing_models = [Category(), Client(), Product(), Sale(), Inventory()]
+    initializing_models = [
+        Category(), Client(), Product(), Sale(), Inventory()]
 
     """Creates all tables by initializing each model and calling its create_table method."""
     for model in initializing_models:
@@ -15,7 +17,7 @@ def create_all_tables():
     print("All tables created successfully.")
 
 
-def load_data_from_excel(file_path="data/sample_data.xlsx"):
+def load_data_from_excel(file_path="sample_data.xlsx"):
     """Loads data from an Excel file and inserts it into corresponding tables."""
     data = pd.read_excel(file_path, sheet_name=None)
 

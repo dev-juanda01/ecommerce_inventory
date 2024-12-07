@@ -11,7 +11,8 @@ class BaseModel:
         """Creates the table in the database using the defined schema."""
         connection = create_connection()
         cursor = connection.cursor()
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS {self.table_name} ({self.schema});")
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {
+                       self.table_name} ({self.schema});")
         connection.commit()
         cursor.close()
         connection.close()
@@ -29,7 +30,7 @@ class BaseModel:
             columns = ', '.join(data.columns)
             values_placeholder = ', '.join(['%s'] * len(data.columns))
             rows = [tuple(row) for _, row in data.iterrows()]
-            
+
         elif isinstance(data, list):  # List of dicts or tuples
 
             if all(isinstance(item, dict) for item in data):  # List of dictionaries
@@ -39,23 +40,38 @@ class BaseModel:
 
             elif all(isinstance(item, tuple) for item in data):  # List of tuples
                 # Define columns and placeholders manually for tuples
-                raise ValueError("Column names must be provided for tuple data.")
-            
+                raise ValueError(
+                    "Column names must be provided for tuple data.")
+
             else:
                 raise TypeError("List items must be dictionaries or tuples.")
         else:
-            raise TypeError("Data must be a pandas DataFrame or a list of dictionaries/tuples.")
+            raise TypeError(
+                "Data must be a pandas DataFrame or a list of dictionaries/tuples.")
 
         try:
             for row in rows:
                 cursor.execute(
-                    f"INSERT INTO {self.table_name} ({columns}) VALUES ({values_placeholder})",
+                    f"INSERT INTO {self.table_name} ({columns}) VALUES ({
+                        values_placeholder})",
                     row
                 )
             connection.commit()
-            print(f"Data inserted into table '{self.table_name}' successfully.")
+            print(f"Data inserted into table '{
+                  self.table_name}' successfully.")
         except Exception as e:
             print(f"Error inserting data: {e}")
         finally:
             cursor.close()
             connection.close()
+
+    @staticmethod
+    def check_database(database="test_db"):
+        """Verify if exists database to populated."""
+        connection = create_connection()
+        cursor = connection.cursor()
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {database};")
+        connection.commit()
+        cursor.close()
+        connection.close()
+        print(f"Database {database} verify successfully.")

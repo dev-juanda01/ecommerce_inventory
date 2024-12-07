@@ -6,7 +6,7 @@ class Product(BaseModel):
             product_id INT PRIMARY KEY AUTO_INCREMENT,
             name VARCHAR(1000),
             category_id INT NULL,
-            unit_price DECIMAL(10, 2),
+            unit_price DECIMAL(64, 2),
             brand VARCHAR(50) DEFAULT 'N/A',
             stock INT DEFAULT 0,
             description TEXT NULL,

@@ -7,7 +7,7 @@ def main():
 
     # initialize tables
     create_all_tables()
-    load_data_from_excel()
+    load_data_from_excel(file_path="data/updated_data.xlsx")
 
 if __name__ == "__main__":
     main()

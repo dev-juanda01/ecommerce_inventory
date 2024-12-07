@@ -1,92 +1,113 @@
+import os
 import pandas as pd
 import random
 import faker
-from datetime import datetime, timedelta
+from faker.providers import internet, company, phone_number, address
+import requests
+from datetime import datetime
 
-# Initialize Faker instance to generate fake data
-fake = faker.Faker()
+# Initialize Faker instance
+fake = faker.Faker('es_ES')
+fake.add_provider(internet)
+fake.add_provider(company)
+fake.add_provider(phone_number)
+fake.add_provider(address)
 
-# Generate categories
-categories = []
-for i in range(1, 21):
-    categories.append({
-        'category_id': i,
-        'name': fake.word().capitalize(),
-        'description': fake.sentence(),
-        'created_at': fake.date_this_decade()
-    })
+# Fetch data from APIs
+# Fetch users from API for clients data
+users_endpoint = "https://api.escuelajs.co/api/v1/users"
+users_response = requests.get(users_endpoint)
+users_data = users_response.json() if users_response.status_code == 200 else []
 
-# Generate clients
-clients = []
-for i in range(1, 21):
-    clients.append({
-        'client_id': i,
-        'name': fake.name(),
-        'location': fake.city(),
-        'email': fake.email(),
-        'phone': fake.phone_number(),
-        'address': fake.address(),
-        'registration_date': fake.date_this_decade()
-    })
+# Fetch products from API
+products_endpoint = "https://api.escuelajs.co/api/v1/products"
+products_response = requests.get(products_endpoint)
+products_data = products_response.json() if products_response.status_code == 200 else []
 
-# Generate products
+clients = [
+    {
+        "client_id": user["id"],
+        "name": user["name"],
+        "location": fake.country(),
+        "email": user["email"],
+        "phone": fake.phone_number(),
+        "address": fake.address().replace("\n", ", "),
+        "registration_date": fake.date_this_decade().strftime('%Y-%m-%d')  # Format date for MySQL
+    }
+    for user in users_data
+]
+
+categories = [
+    {"category_id": i + 1, "name": cat, "description": fake.text(max_nb_chars=50), 
+     "created_at": fake.date_this_decade().strftime('%Y-%m-%d')}  # Format date for MySQL
+    for i, cat in enumerate(["Electrónica", "Hogar", "Ropa", "Juguetes", "Deportes"])
+]
+
+# Map category names to IDs for consistency
+category_name_to_id = {cat['name']: cat['category_id'] for cat in categories}
+
 products = []
-for i in range(1, 21):
-    category_id = random.randint(1, 5)
+
+# Add products from API
+for product in products_data:
+    category_name = product.get('category', {}).get('name', "")
+    category_id = category_name_to_id.get(category_name, random.choice(categories)['category_id'])
     products.append({
-        'product_id': i,
-        'name': fake.word().capitalize() + " " + fake.word().capitalize(),
-        'category_id': category_id,
-        'unit_price': round(random.uniform(10, 1000), 2),
-        'brand': fake.company(),
-        'stock': random.randint(50, 200),
-        'description': fake.sentence(),
-        'created_at': fake.date_this_decade()
+        "product_id": product['id'],
+        "name": product['title'] if product['title'] != "New Product" else "Indefinido",
+        "category_id": category_id,
+        "unit_price": product['price'],
+        "brand": fake.company(),
+        "stock": random.randint(10, 200),
+        "description": product['description'],
+        "created_at": product['creationAt'][:10]  # Take only the date part for MySQL
     })
 
-# Generate sales
 sales = []
-for i in range(1, 21):
-    product_id = random.randint(1, 5)
-    client_id = random.randint(1, 5)
-    sale_date = fake.date_this_year()
+for i in range(1, 31):
+    product = random.choice(products)
+    client = random.choice(clients)
     sales.append({
-        'sale_id': i,
-        'product_id': product_id,
-        'client_id': client_id,
-        'sale_date': sale_date,
-        'quantity': random.randint(1, 5),
-        'price': round(random.uniform(10, 1000), 2),
-        'payment_method': random.choice(['Credit Card', 'PayPal', 'Debit Card']),
-        'sale_status': random.choice(['Completed', 'Pending', 'Canceled'])
+        "sale_id": i,
+        "product_id": product['product_id'],
+        "client_id": client['client_id'],
+        "sale_date": fake.date_this_year().strftime('%Y-%m-%d'),  # Format date for MySQL
+        "quantity": random.randint(1, 5),
+        "price": round(product['unit_price'] * random.randint(1, 5), 2),
+        "payment_method": random.choice(["Credit Card", "Debit Card", "PayPal"]),
+        "sale_status": random.choice(["Completed", "Pending", "Canceled"])
     })
 
-# Generate inventory data
-inventory = []
-for i in range(1, 21):
-    product_id = random.randint(1, 5)
-    date = fake.date_this_year()
-    inventory.append({
-        'inventory_id': i,
-        'product_id': product_id,
-        'date': date,
-        'stock_available': random.randint(50, 200),
-        'last_updated': fake.date_this_year()
-    })
+inventory = [
+    {
+        "inventory_id": i + 1,
+        "product_id": product['product_id'],
+        "date": fake.date_this_year().strftime('%Y-%m-%d'),  # Format date for MySQL
+        "stock_available": product['stock'] - random.randint(0, 10),
+        "last_updated": fake.date_this_month().strftime('%Y-%m-%d')  # Format date for MySQL
+    }
+    for i, product in enumerate(products)
+]
 
-# Create DataFrame for each table
-df_categories = pd.DataFrame(categories)
-df_clients = pd.DataFrame(clients)
-df_products = pd.DataFrame(products)
-df_sales = pd.DataFrame(sales)
-df_inventory = pd.DataFrame(inventory)
+# Create DataFrames
+categories_df = pd.DataFrame(categories)
+products_df = pd.DataFrame(products)
+clients_df = pd.DataFrame(clients)
+sales_df = pd.DataFrame(sales)
+inventory_df = pd.DataFrame(inventory)
 
-# Create an Excel file with multiple sheets
-with pd.ExcelWriter('../data/sample_data.xlsx', engine='xlsxwriter') as writer:
-    df_categories.to_excel(writer, sheet_name='Categories', index=False)
-    df_clients.to_excel(writer, sheet_name='Clients', index=False)
-    df_products.to_excel(writer, sheet_name='Products', index=False)
-    df_sales.to_excel(writer, sheet_name='Sales', index=False)
-    df_inventory.to_excel(writer, sheet_name='Inventory', index=False)
 
-print("sample_data.xlsx file generated successfully.")
+# Save to Excel
+# Construir la ruta para guardar el archivo en la carpeta data
+output_dir = os.path.join(os.path.dirname(__file__), '../data')
+os.makedirs(output_dir, exist_ok=True)  # Asegurar que la carpeta existe
+output_path = os.path.join(output_dir, 'updated_data.xlsx')
+
+with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
+    categories_df.to_excel(writer, index=False, sheet_name='Categories')
+    products_df.to_excel(writer, index=False, sheet_name='Products')
+    clients_df.to_excel(writer, index=False, sheet_name='Clients')
+    sales_df.to_excel(writer, index=False, sheet_name='Sales')
+    inventory_df.to_excel(writer, index=False, sheet_name='Inventory')
+
+print("updated_data.xlsx file generated successfully.")
